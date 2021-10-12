@@ -115,3 +115,8 @@ if (true === Casbin::enforce($sub, $obj, $act)) {
 + 使用配置文件对Casbin的Model、Adapter的可配置化
 
 通过Casbin官网 (https://casbin.org )查看更多用法。
+
+
+### 修改
+
+1. 增加casbin v3 的支持
