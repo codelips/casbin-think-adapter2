@@ -2,6 +2,7 @@
 
 namespace CasbinAdapter\Think;
 
+use Casbin\Model\Model;
 use CasbinAdapter\Think\Models\CasbinRule;
 use Casbin\Persist\Adapter as AdapterContract;
 use Casbin\Persist\AdapterHelper;
@@ -22,24 +23,35 @@ class Adapter implements AdapterContract
         $this->casbinRule = $casbinRule;
     }
 
+    /**
+     * This is part of the Auto-Save feature.
+     *
+     * @param string $ptype
+     * @param array $rule
+     */
     public function savePolicyLine($ptype, array $rule)
     {
         $col['ptype'] = $ptype;
         foreach ($rule as $key => $value) {
-            $col['v'.strval($key).''] = $value;
+            $col['v' . strval($key) . ''] = $value;
         }
         $this->casbinRule->create($col);
     }
 
-    public function loadPolicy($model)
+    /**
+     * Saves all policy rules to the storage.
+     *
+     * @param Model $model
+     */
+    public function loadPolicy(Model $model): void
     {
         $rows = $this->casbinRule->select()->toArray();
 
         foreach ($rows as $row) {
-            if(is_object($row) && method_exists($row, 'toArray')){
-                $row= $row->toArray();
+            if (is_object($row) && method_exists($row, 'toArray')) {
+                $row = $row->toArray();
             }
-            
+
             $line = implode(', ', array_filter(array_slice($row, 1), function ($val) {
                 return '' != $val && !is_null($val);
             }));
@@ -47,7 +59,12 @@ class Adapter implements AdapterContract
         }
     }
 
-    public function savePolicy($model)
+    /**
+     * Loads all policy rules from the storage.
+     *
+     * @param Model $model
+     */
+    public function savePolicy(Model $model): void
     {
         foreach ($model->model['p'] as $ptype => $ast) {
             foreach ($ast->policy as $rule) {
@@ -60,45 +77,58 @@ class Adapter implements AdapterContract
                 $this->savePolicyLine($ptype, $rule);
             }
         }
-
-        return true;
     }
 
-    public function addPolicy($sec, $ptype, $rule)
+    /**
+     * Adds a policy rule to the storage.
+     * This is part of the Auto-Save feature.
+     *
+     * @param string $sec
+     * @param string $ptype
+     * @param array $rule
+     */
+    public function addPolicy($sec, $ptype, $rule): void
     {
-        return $this->savePolicyLine($ptype, $rule);
+        $this->savePolicyLine($ptype, $rule);
     }
 
-    public function removePolicy($sec, $ptype, $rule)
+    /**
+     * This is part of the Auto-Save feature.
+     *
+     * @param string $sec
+     * @param string $ptype
+     * @param array $rule
+     */
+    public function removePolicy($sec, $ptype, $rule): void
     {
         $result = $this->casbinRule->where('ptype', $ptype);
 
         foreach ($rule as $key => $value) {
-            $result->where('v'.strval($key), $value);
+            $result->where('v' . strval($key), $value);
         }
 
-        return $result->delete();
+        $result->delete();
     }
-
-    public function removeFilteredPolicy($sec, $ptype, $fieldIndex, ...$fieldValues)
+    
+    /**
+     * RemoveFilteredPolicy removes policy rules that match the filter from the storage.
+     * This is part of the Auto-Save feature.
+     *
+     * @param string $sec
+     * @param string $ptype
+     * @param int $fieldIndex
+     * @param string ...$fieldValues
+     */
+    public function removeFilteredPolicy($sec, $ptype, $fieldIndex, ...$fieldValues): void
     {
-        $count = 0;
 
         $instance = $this->casbinRule->where('ptype', $ptype);
         foreach (range(0, 5) as $value) {
             if ($fieldIndex <= $value && $value < $fieldIndex + count($fieldValues)) {
                 if ('' != $fieldValues[$value - $fieldIndex]) {
-                    $instance->where('v'.strval($value), $fieldValues[$value - $fieldIndex]);
+                    $instance->where('v' . strval($value), $fieldValues[$value - $fieldIndex]);
                 }
             }
         }
-
-        foreach ($instance->select() as $model) {
-            if ($model->delete()) {
-                ++$count;
-            }
-        }
-
-        return $count;
     }
 }
